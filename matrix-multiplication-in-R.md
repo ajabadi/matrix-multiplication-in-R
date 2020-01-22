@@ -21,38 +21,47 @@ results <- list()
 results$xyT <- results$xy <- list()
 ```
 
-# X %*% Y & X %*% t(Y)
+# Benchmark for X %\*% Y & X %\*% t(Y)
+
+## get runtimes
 
 ``` r
 set.seed(442)
-for (n in c(250, 500, 1000, 2000, 4000)) {
+for (n in c(125, 250, 500, 1000, 2000, 4000)) {
     X <- mat_creator(n = n)
     results$xy[[sprintf("dims_%s", n)]]  <- microbenchmark(Rfast = Rfast::mat.mult(X , X),
                                                            crossprod = crossprod(X, X),
                                                            `%*%` = X %*% X,
-                                                           times = 5L)
+                                                           times = 3L)
     
     results$xyT[[sprintf("dims_%s", n)]]  <- microbenchmark(Rfast = Rfast::mat.mult(X , t(X)),
                                                             crossprod = tcrossprod(X, X),
                                                             `%*%` = X %*% t(X),
-                                                            times = 5L)
+                                                            times = 3L)
+    saveRDS(results, "results2.rds")
 }
-saveRDS(results, "results.rds")
 ```
 
 ``` r
-results <- readRDS("results.rds")
+results <- readRDS("results2.rds")
 ```
+
+## aggregate results
 
 ``` r
 dfs <- lapply(results, function(w){
     mapply(x=w, y=names(results[[1]]), FUN = function(x, y) {
         out <- summary(x)[,c("expr","min", "mean", "max")]
+        if (attr(summary(x), "unit") == "milliseconds") {
+            out[,c("min", "mean", "max")] <- out[,c("min", "mean", "max")]/1e3
+        }
         out$dim <- as.integer(gsub(pattern = "dims_", replacement = "", x = y))
         out
     }, SIMPLIFY = FALSE)
 })
 ```
+
+## plot
 
 ``` r
 library(ggplot2)
@@ -80,10 +89,15 @@ plot_mb <- function(dfs_list){
     df2$mult_type <- as.character(df2$mult_type)
     df2$mult_type[df2$mult_type == "xy"] <- " X * Y"
     df2$mult_type[df2$mult_type == "xyT"] <- " X * t(Y)"
-    ggplot(df2) + geom_line(aes(dim, time, linetype = type, col = expr)) + facet_wrap(~ mult_type) + guides(col = guide_legend(title = "Method"), linetype = guide_legend(title = "Runtime")) + scale_linetype_manual(values = c(min=2, mean=1, max=4)) + labs(x = "Dimension of the square matrix", y = "Runtime (milisec)") + theme_bw()
+    df2$expr <- as.character(df2$expr)
+    df2$expr[df2$expr == "crossprod"] <- "(t)crossprod"
+    df2$expr[df2$expr == "Rfast"] <- "Rfast::mat.mult"
+    ggplot(df2) + geom_line(aes(dim, time, linetype = type, col = expr)) + facet_wrap(~ mult_type) + guides(col = guide_legend(title = "Method"), linetype = guide_legend(title = "Runtime")) + scale_linetype_manual(values = c(min=2, mean=1, max=4)) + labs(x = "Dimension of the square matrix", y = "Runtime (sec)") + theme_bw()
 }
+```
 
+``` r
 plot_mb(dfs)
 ```
 
-![](matrix-multiplication-in-R_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](matrix-multiplication-in-R_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->

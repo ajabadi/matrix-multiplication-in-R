@@ -2,7 +2,7 @@
 title: "Matrix Multiplication in R"
 output: github_document
 params:
-    rerun: TRUE
+    rerun: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -22,7 +22,9 @@ results <- list()
 results$xyT <- results$xy <- list()
 ```
 
-# X %*% Y  &   X %*% t(Y)
+# Benchmark for X %\*% Y  &   X %\*% t(Y)
+
+## get runtimes
 
 ```{r, eval=params$rerun}
 set.seed(442)
@@ -47,6 +49,8 @@ for (n in c(125, 250, 500, 1000, 2000, 4000)) {
 results <- readRDS("results2.rds")
 ```
 
+## aggregate results
+
 ```{r}
 dfs <- lapply(results, function(w){
     mapply(x=w, y=names(results[[1]]), FUN = function(x, y) {
@@ -59,6 +63,8 @@ dfs <- lapply(results, function(w){
     }, SIMPLIFY = FALSE)
 })
 ```
+
+## plot
 
 ```{r}
 library(ggplot2)
@@ -91,7 +97,9 @@ plot_mb <- function(dfs_list){
     df2$expr[df2$expr == "Rfast"] <- "Rfast::mat.mult"
     ggplot(df2) + geom_line(aes(dim, time, linetype = type, col = expr)) + facet_wrap(~ mult_type) + guides(col = guide_legend(title = "Method"), linetype = guide_legend(title = "Runtime")) + scale_linetype_manual(values = c(min=2, mean=1, max=4)) + labs(x = "Dimension of the square matrix", y = "Runtime (sec)") + theme_bw()
 }
+```
 
+```{r}
 plot_mb(dfs)
 ```
 
